@@ -17,7 +17,7 @@ COPY . .
 EXPOSE 8080
 
 # Set environment variables for memory limits
-ENV NODE_OPTIONS="--max-old-space-size=230" # Limiting Node.js memory to 230MB
+ENV NODE_OPTIONS="--max-old-space-size=230"
 
 # Command to run the bot and the health check server
 CMD ["node", "--expose-gc", "index.js"]
