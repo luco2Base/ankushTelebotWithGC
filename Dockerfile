@@ -1,23 +1,23 @@
-# Use the official Node.js 20 runtime as the base image
+# Use the official Node.js runtime as the base image
 FROM node:20
 
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json to install dependencies
+# Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install only production dependencies
+# Install dependencies
 RUN npm install --production
 
-# Copy the rest of the application code into the container
+# Copy the rest of the application code
 COPY . .
 
-# Expose the port for the health check server
+# Expose the port for health checks
 EXPOSE 8080
 
 # Set environment variables for memory limits
-ENV NODE_OPTIONS="--max-old-space-size=230" # Set to lower than 256MB to ensure safe execution
+ENV NODE_OPTIONS="--max-old-space-size=230" # Limiting Node.js memory to 230MB
 
 # Command to run the bot and the health check server
 CMD ["node", "--expose-gc", "index.js"]
