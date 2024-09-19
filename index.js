@@ -106,7 +106,7 @@ const startBot = async () => {
             });
 
             await Promise.all(tasks); // Execute all tasks concurrently
-            await delay(1000); // Adjust delay as needed
+            await delay(900); // Adjust delay as needed
 
         } catch (err) {
             console.error("Error fetching messages: ", err);
