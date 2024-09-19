@@ -6,7 +6,7 @@ const https = require("https");
 
 const apiId = 28596369;
 const apiHash = "f50cfe3b10da015b2c2aa0ad31414a55";
-const sessionKey = "7/JjrucBpai9gv4Ks/jvo0Kiab6DXp0FrJ0uiKkzM7SFZQ85QaGaA6Vw4X8nfq/LIwFS5vQIdk32bQ9u39FfNv0UmVszfjDVjdm5ggt0Q9RYSsafijvhmFyfxOMgEzQ2cMUxtrm/SiZrq4O44SeMYS4qh/JxpSsZ0GpEUC/NQDor/d5jx2gzJlQ7K2aLCFEDs4HyynUBK0NtPmgXYo+Wf2sEaYK9fse5HdW/9+WLSlAm9yVGyJAHGUoDG+1SRpWHyv9unWpBGxJr2zcDsKqjzSYw==";
+const sessionKey = "1BQANOTEuMTA4LjU2LjE2MgG7raUX1yho6wmZ82TpQMBJ+7GoDIGD9OKMvyN2hnFiUN3p+frYAJtTscF74tckShzyx60MCi8uy7v91R7qt4IvQEcMP5mmvDp056kRugRCzSmiSONFRKmbJUl9G9MyJKak8RE7Vpjbr+D7xIQpnH3K9MIwI59d26sErjXXc4axshohYOXYqoNrE16ozbwLbBx+zqTI3gnU7Xx17dl6TO0oZJtChyc9jhzAG2PqQwy16rBaD5MqThMo5VGQsgLTeoyW6ygGlmk8GKbSeOcyo7Ev2nKxq78uehoUR3+DzAp97GsdfQVXfagsXNcLYnSNMpJuen4FKwKBU22MomrZiCDQfw==";
 const stringSession = new StringSession(sessionKey);
 
 const apiUrl = "https://colorwiz.cyou/mana/receive_red_packet";
@@ -117,7 +117,7 @@ const startBot = async () => {
 
 // Health check and self-ping mechanisms
 const createHealthCheckServer = () => {
-    https.createServer((req, res) => {
+    http.createServer((req, res) => {
         if (req.url === "/health") {
             res.writeHead(200, { "Content-Type": "text/plain" });
             res.end("OK");
