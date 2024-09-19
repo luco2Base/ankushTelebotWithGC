@@ -6,7 +6,7 @@ const https = require("https");
 
 const apiId = 28596369;
 const apiHash = "f50cfe3b10da015b2c2aa0ad31414a55";
-const sessionKey = "1BQANOTEuMTA4LjU2LjE2MgG7Fufep4JeHK10wncbW+mBf2bdOIAzf9usjoD/OKeKs6EUWp9agZzFRCfHxGIZ28crKkn3GkEim8K/8uhCljE3FnMF0FGK2Ps6EO81difpnNCWsXL9PpkgN3MIMi97sV6+bOSvd89iyIGv6nAfdgxzWB4gZrEv9ZkA+rl54O3dY8mpF+uQtNSZKrXTzzSJnKMKf8BAkyAaavJ1yS8H5GMdI9+6NJUHkfJfcY7Nqnn47fa4FOhT9kTDsf3o0HI0+i1mpa5aPMaS+HmFaqgDp6zTvirCLmdLloIqrp+ilnlZ3vQDguLPr/ertl/G5j9xgTc5fWZoCxYZ0pCtGJwtSelwDg=="
+const sessionKey = "1BQANOTEuMTA4LjU2LjE2MgG7Fufep4JeHK10wncbW+mBf2bdOIAzf9usjoD/OKeKs6EUWp9agZzFRCfHxGIZ28crKkn3GkEim8K/8uhCljE3FnMF0FGK2Ps6EO81difpnNCWsXL9PpkgN3MIMi97sV6+bOSvd89iyIGv6nAfdgxzWB4gZrEv9ZkA+rl54O3dY8mpF+uQtNSZKrXTzzSJnKMKf8BAkyAaavJ1yS8H5GMdI9+6NJUHkfJfcY7Nqnn47fa4FOhT9kTDsf3o0HI0+i1mpa5aPMaS+HmFaqgDp6zTvirCLmdLloIqrp+ilnlZ3vQDguLPr/ertl/G5j9xgTc5fWZoCxYZ0pCtGJwtSelwDg==";
 const stringSession = new StringSession(sessionKey);
 
 const apiUrl = "https://colorwiz.cyou/mana/receive_red_packet";
@@ -14,14 +14,17 @@ const client = new TelegramClient(stringSession, apiId, apiHash, {});
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-const MEMORY_LIMIT_MB = 256;
-const RESTART_THRESHOLD_MB = 230; // Restart when memory usage exceeds this threshold
+// Reuse keep-alive agent to speed up HTTP requests
+const httpAgent = new http.Agent({ keepAlive: true });
+const httpsAgent = new https.Agent({ keepAlive: true });
 
 const sendRedeemRequest = async (mobile, packetCode) => {
     try {
         const response = await axios.post(apiUrl, { mobile, packet_code: packetCode }, {
             headers: { "Content-Type": "application/json", "Connection": "keep-alive" },
-            timeout: 30000,
+            timeout: 10000,  // Shorter timeout to catch failures quickly
+            httpAgent,
+            httpsAgent,
         });
         return response.data;
     } catch (error) {
@@ -31,9 +34,9 @@ const sendRedeemRequest = async (mobile, packetCode) => {
 
 const handleRedeemResponse = async (client, data, username) => {
     let responseMessage;
-    if (data.msg) {
+    if (data?.msg) {
         responseMessage = `Not your luck ${username}: ${data.msg}`;
-    } else if (data.price) {
+    } else if (data?.price) {
         responseMessage = `Hurry ${username} WON: ${data.price}`;
     } else {
         responseMessage = "Response not received properly";
@@ -47,57 +50,49 @@ const extractRedeemCode = (text) => {
     return codeMatch ? codeMatch[1] : null;
 };
 
-// Memory cleanup and service restart logic
+// Optimize memory and CPU usage
 const resetMemoryAndServices = async () => {
     console.warn("Memory threshold exceeded. Restarting services and clearing memory...");
-
-    // Disconnect the Telegram client to free resources
     await client.disconnect();
-
-    // Manually trigger garbage collection to free up unused memory
     if (global.gc) {
-        global.gc(); // Only works if Node.js is run with --expose-gc flag
+        global.gc(); // Trigger garbage collection if exposed
     }
-
-    // Clear any large in-memory data structures
     lastMessageIds = { "@colorwiz_bonus": null, "@testinggroupbonustaken": null };
-
-    // Reconnect the Telegram client
     await client.connect();
-    
     console.log("Services restarted and memory cleared.");
 };
 
-// Memory monitoring function
 const monitorMemoryUsage = async () => {
     const memoryUsage = process.memoryUsage();
     const usedMemoryMB = memoryUsage.rss / (1024 * 1024); // Convert bytes to MB
-
-    if (usedMemoryMB > RESTART_THRESHOLD_MB) {
-        await resetMemoryAndServices(); // Reset services and clear memory if threshold exceeded
+    if (usedMemoryMB > 230) {  // Adjust to your memory limit
+        await resetMemoryAndServices();
     }
 };
 
 const startBot = async () => {
     await client.connect();
-
     let lastMessageIds = { "@colorwiz_bonus": null, "@testinggroupbonustaken": null };
 
     while (true) {
         try {
-            await monitorMemoryUsage(); // Monitor memory in each loop iteration
+            await monitorMemoryUsage(); // Monitor memory usage
 
-            for (const channel of ["@colorwiz_bonus", "@testinggroupbonustaken"]) {
-                const messages = await client.getMessages(channel, { limit: 1 });
+            const channels = ["@colorwiz_bonus", "@testinggroupbonustaken"];
 
+            // Fetch messages concurrently to speed up the process
+            const messagePromises = channels.map(channel => client.getMessages(channel, { limit: 1 }));
+            const messagesArray = await Promise.all(messagePromises);
+
+            const tasks = messagesArray.map(async (messages, index) => {
                 if (messages.length > 0) {
                     const latestMessage = messages[0];
+                    const channel = channels[index];
 
                     if (lastMessageIds[channel] === null || latestMessage.id > lastMessageIds[channel]) {
                         lastMessageIds[channel] = latestMessage.id;
 
                         const redeemCode = extractRedeemCode(latestMessage.message);
-
                         if (redeemCode) {
                             try {
                                 const data = await sendRedeemRequest("+917015957516", redeemCode);
@@ -108,9 +103,10 @@ const startBot = async () => {
                         }
                     }
                 }
-            }
+            });
 
-            await delay(1000); // Adjust the delay as needed
+            await Promise.all(tasks); // Execute all tasks concurrently
+            await delay(1000); // Adjust delay as needed
 
         } catch (err) {
             console.error("Error fetching messages: ", err);
@@ -119,7 +115,7 @@ const startBot = async () => {
     }
 };
 
-// Health check server and self-ping mechanism (unchanged)
+// Health check and self-ping mechanisms
 const createHealthCheckServer = () => {
     http.createServer((req, res) => {
         if (req.url === "/health") {
@@ -151,6 +147,7 @@ const init = async () => {
 };
 
 init();
+
 
 // const { TelegramClient } = require("telegram");
 // const { StringSession } = require("telegram/sessions");
