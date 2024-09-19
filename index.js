@@ -117,7 +117,7 @@ const startBot = async () => {
 
 // Health check and self-ping mechanisms
 const createHealthCheckServer = () => {
-    http.createServer((req, res) => {
+    https.createServer((req, res) => {
         if (req.url === "/health") {
             res.writeHead(200, { "Content-Type": "text/plain" });
             res.end("OK");
